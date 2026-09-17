@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Estoque">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f1410">
+<title>Estoque — Auto Posto Jales</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📦</text></svg>">
+<style>
+  :root{
+    --bg: #0e130f;
+    --panel: #161d17;
+    --panel-2: #1c241d;
+    --panel-3: #222b23;
+    --line: #262f27;
+    --text: #f1f3ec;
+    --muted: #97a390;
+    --accent: #ffb703;
+    --accent-2: #6fae4f;
+    --danger: #e0554a;
+    --low: #ea6a5f;
+    --mid: #ffb703;
+    --ok: #6fae4f;
+    --mono: 'SFMono-Regular', ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, sans-serif;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --nav-h: 62px;
+  }
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{ margin:0; padding:0; overscroll-behavior-y: none; }
+  html{ height:100%; }
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 10px);
+    user-select: none;
+  }
+  input, textarea { user-select: text; }
+  button{ font-family: inherit; -webkit-appearance: none; appearance: none; border: none; background: none; color: inherit; }
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    position: sticky; top: 0; z-index: 40;
+    padding-top: calc(var(--safe-top) + 10px);
+    background: rgba(14,19,15,0.86);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border-bottom: 1px solid var(--line);
+  }
+  .topbar-inner{ padding: 0 16px 12px; }
+  .topbar .eyebrow{
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; color: var(--accent-2);
+    display:flex; justify-content: space-between; align-items:center;
+  }
+  .topbar h1{
+    margin: 2px 0 10px; font-size: 22px; font-weight: 750; letter-spacing: -0.02em;
+  }
+
+  .search-row{ display:flex; gap: 8px; }
+  .search-wrap{
+    flex:1; position: relative; display:flex; align-items:center;
+    background: var(--panel-3); border-radius: 12px; height: 40px;
+  }
+  .search-wrap svg{ position:absolute; left:12px; opacity:.55; pointer-events:none; }
+  .search-wrap input{
+    width:100%; height:100%; background:transparent; border:none; color:var(--text);
+    padding: 0 34px 0 34px; font-size: 15px; font-family: var(--sans);
+  }
+  .search-wrap input:focus{ outline:none; }
+  .search-wrap .clear-btn{
+    position:absolute; right:8px; width:22px; height:22px; border-radius:50%;
+    background: var(--line); display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none; transition: opacity .15s;
+  }
+  .search-wrap .clear-btn.show{ opacity:1; pointer-events:auto; }
+
+  .filter-btn{
+    width: 40px; height: 40px; border-radius: 12px; background: var(--panel-3);
+    display:flex; align-items:center; justify-content:center; position: relative; flex-shrink:0;
+  }
+  .filter-btn.active-filter{ background: var(--accent-2); color: #0f1410; }
+  .filter-dot{
+    position:absolute; top:6px; right:6px; width:7px; height:7px; border-radius:50%;
+    background: var(--accent); display:none;
+  }
+  .filter-dot.show{ display:block; }
+
+  /* chips row (groups) */
+  .chips-row{
+    display:flex; gap:7px; overflow-x:auto; padding: 12px 16px 2px; scrollbar-width:none;
+    -ms-overflow-style:none;
+  }
+  .chips-row::-webkit-scrollbar{ display:none; }
+  .chip{
+    font-family: var(--mono); font-size: 11.5px; letter-spacing:.02em;
+    padding: 7px 13px; border-radius: 999px; background: var(--panel-3);
+    color: var(--muted); white-space:nowrap; display:flex; align-items:center; gap:6px;
+    flex-shrink:0; border: 1px solid transparent;
+  }
+  .chip .dot{ width:7px; height:7px; border-radius:50%; }
+  .chip.active{ background: var(--panel-2); color: var(--text); border-color: var(--accent-2); }
+  .chip .count{ opacity:.6; font-size:10.5px; }
+
+  /* ---------- Stats strip ---------- */
+  .stats-strip{
+    display:flex; gap:10px; padding: 14px 16px 4px; overflow-x:auto; scrollbar-width:none;
+  }
+  .stats-strip::-webkit-scrollbar{ display:none; }
+  .stat-card{
+    flex-shrink:0; min-width: 104px; background: var(--panel); border:1px solid var(--line);
+    border-radius: 14px; padding: 12px 14px;
+  }
+  .stat-card .n{ font-family: var(--mono); font-size: 22px; font-weight: 700; line-height:1; }
+  .stat-card .l{ font-size: 11px; color: var(--muted); margin-top: 5px; }
+  .stat-card.low .n{ color: var(--low); }
+  .stat-card.warn .n{ color: var(--accent); }
+
+  /* ---------- List ---------- */
+  .list{ padding: 6px 12px 20px; }
+  .section-label{
+    font-size: 12px; color: var(--muted); font-weight: 600; padding: 14px 8px 8px;
+  }
+
+  .item-card{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    margin-bottom: 8px;
+    padding: 13px 14px;
+    display:flex; align-items:center; gap: 12px;
+    position: relative;
+    overflow: hidden;
+    transition: transform .12s;
+  }
+  .item-card:active{ transform: scale(0.98); background: var(--panel-2); }
+  .item-card .stripe{
+    position:absolute; left:0; top:0; bottom:0; width: 3px;
+  }
+  .item-info{ flex:1; min-width:0; }
+  .item-info .name{
+    font-size: 14.5px; font-weight: 600; line-height: 1.3;
+    overflow:hidden; text-overflow:ellipsis; display:-webkit-box;
+    -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  }
+  .item-info .meta{
+    display:flex; align-items:center; gap:6px; margin-top: 5px;
+  }
+  .item-info .group-badge{
+    font-size: 10.5px; color: var(--muted); font-family: var(--mono);
+  }
+  .item-info .code{
+    font-size: 10px; color: var(--muted); font-family: var(--mono); opacity:.6;
+  }
+
+  .qty-control{
+    display:flex; align-items:center; gap: 2px; flex-shrink:0;
+    background: var(--panel-3); border-radius: 12px; padding: 3px;
+  }
+  .qty-btn{
+    width: 32px; height: 32px; border-radius: 9px; display:flex; align-items:center; justify-content:center;
+    font-size: 19px; font-weight: 500; color: var(--text);
+  }
+  .qty-btn:active{ background: var(--line); }
+  .qty-btn.minus:active{ color: var(--danger); }
+  .qty-btn.plus:active{ color: var(--accent-2); }
+  .qty-value{
+    width: 38px; text-align:center; font-family: var(--mono); font-size: 16px; font-weight: 700;
+  }
+  .qty-value.low{ color: var(--low); }
+  .qty-value.mid{ color: var(--mid); }
+
+  .swipe-del{
+    position:absolute; right:0; top:0; bottom:0; width: 78px;
+    background: var(--danger); display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:13px; font-weight:600; transform: translateX(100%);
+    transition: transform .2s;
+  }
+  .item-card.swiped .swipe-del{ transform: translateX(0); }
+  .item-card.swiped .item-info, .item-card.swiped .qty-control{ transform: translateX(-84px); }
+  .item-info, .qty-control{ transition: transform .2s; }
+
+  .empty-state{
+    text-align:center; padding: 60px 24px; color: var(--muted);
+  }
+  .empty-state svg{ opacity:.3; margin-bottom: 14px; }
+  .empty-state .t{ font-size: 15px; font-weight:600; color: var(--text); margin-bottom:4px; }
+  .empty-state .s{ font-size: 13px; }
+
+  /* ---------- Bottom Tab Bar (native app style) ---------- */
+  .tabbar{
+    position: fixed; left:0; right:0; bottom:0; z-index: 60;
+    background: rgba(20,26,21,0.92);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border-top: 1px solid var(--line);
+    padding-bottom: var(--safe-bottom);
+    display:flex;
+  }
+  .tab-item{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap: 3px; padding: 8px 0 6px; color: var(--muted);
+  }
+  .tab-item.active{ color: var(--accent-2); }
+  .tab-item svg{ width:23px; height:23px; }
+  .tab-item .label{ font-size: 10px; font-weight: 600; }
+
+  .fab{
+    position: fixed; right: 16px;
+    bottom: calc(var(--nav-h) + var(--safe-bottom) + 14px);
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--accent-2); color: #0f1410;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 6px 20px rgba(111,174,79,.4);
+    z-index: 55; transition: transform .15s;
+  }
+  .fab:active{ transform: scale(0.92); }
+
+  /* ---------- Bottom sheet (filters) ---------- */
+  .sheet-bg{
+    position: fixed; inset:0; background: rgba(0,0,0,.55); z-index: 90;
+    opacity:0; pointer-events:none; transition: opacity .25s;
+  }
+  .sheet-bg.show{ opacity:1; pointer-events:auto; }
+  .sheet{
+    position: fixed; left:0; right:0; bottom:0; z-index: 95;
+    background: var(--panel); border-radius: 22px 22px 0 0;
+    padding: 10px 20px calc(24px + var(--safe-bottom));
+    transform: translateY(100%); transition: transform .28s cubic-bezier(.32,.72,0,1);
+    max-height: 80vh; overflow-y: auto;
+  }
+  .sheet.show{ transform: translateY(0); }
+  .sheet-handle{
+    width: 36px; height: 4px; border-radius: 4px; background: var(--line);
+    margin: 6px auto 14px;
+  }
+  .sheet h3{ margin: 0 0 4px; font-size: 18px; }
+  .sheet .sub{ color: var(--muted); font-size: 12.5px; margin-bottom: 18px; }
+
+  .field{ margin-bottom: 16px; }
+  .field label{ font-size: 12px; color: var(--muted); display:block; margin-bottom: 7px; font-weight:600; }
+  .field input{
+    width:100%; background: var(--panel-3); border:1px solid var(--line); color: var(--text);
+    padding: 12px 14px; border-radius: 11px; font-family: var(--sans); font-size: 15px;
+  }
+  .field input:focus{ outline:none; border-color: var(--accent-2); }
+  .field input[type="number"]{ font-family: var(--mono); }
+
+  .segmented{
+    display:flex; gap:6px; flex-wrap:wrap;
+  }
+  .segmented .opt{
+    padding: 9px 14px; border-radius: 10px; background: var(--panel-3); font-size: 13px;
+    color: var(--muted); border: 1px solid transparent;
+  }
+  .segmented .opt.active{ background: var(--panel-2); color: var(--text); border-color: var(--accent-2); }
+
+  .toggle-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 12px 0; border-top: 1px solid var(--line);
+  }
+  .toggle-row .t{ font-size: 14px; font-weight:500; }
+  .switch{
+    width: 48px; height: 28px; border-radius: 999px; background: var(--panel-3);
+    position: relative; flex-shrink:0; transition: background .2s;
+  }
+  .switch.on{ background: var(--accent-2); }
+  .switch .knob{
+    position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%;
+    background:#fff; transition: transform .2s;
+  }
+  .switch.on .knob{ transform: translateX(20px); }
+
+  .sheet-actions{ display:flex; gap:10px; margin-top: 20px; }
+  .sheet-btn{
+    flex:1; padding: 14px; border-radius: 13px; text-align:center; font-weight:600; font-size:15px;
+  }
+  .sheet-btn.ghost{ background: var(--panel-3); color: var(--text); }
+  .sheet-btn.primary{ background: var(--accent-2); color: #0f1410; }
+  .sheet-btn:active{ transform: scale(0.97); }
+
+  .sort-list{ display:flex; flex-direction:column; gap:2px; }
+  .sort-opt{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 13px 4px; border-bottom: 1px solid var(--line); font-size:14.5px;
+  }
+  .sort-opt:last-child{ border-bottom:none; }
+  .sort-opt .check{ color: var(--accent-2); opacity:0; }
+  .sort-opt.active .check{ opacity:1; }
+
+  /* toast */
+  .toast{
+    position: fixed; left:50%; bottom: calc(var(--nav-h) + var(--safe-bottom) + 20px);
+    transform: translateX(-50%) translateY(20px); z-index: 120;
+    background: var(--panel-3); border:1px solid var(--line); color:var(--text);
+    padding: 12px 18px; border-radius: 13px; font-size: 13.5px; font-weight:500;
+    opacity:0; pointer-events:none; transition: all .25s; display:flex; align-items:center; gap:8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.4); white-space: nowrap;
+  }
+  .toast.show{ opacity:1; transform: translateX(-50%) translateY(0); }
+
+  ::-webkit-scrollbar{ display:none; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="eyebrow">
+      <span>AUTO POSTO JALES · SETOR 1</span>
+      <span id="lastUpdate">—</span>
+    </div>
+    <h1>Estoque</h1>
+    <div class="search-row">
+      <div class="search-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="searchInput" placeholder="Buscar produto ou código" autocomplete="off" enterkeyhint="search">
+        <div class="clear-btn" id="clearSearch">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </div>
+      </div>
+      <button class="filter-btn" id="openFilters">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+        <span class="filter-dot" id="filterDot"></span>
+      </button>
+    </div>
+  </div>
+  <div class="chips-row" id="chipsRow"></div>
+</div>
+
+<div class="stats-strip">
+  <div class="stat-card">
+    <div class="n" id="statTotal">0</div>
+    <div class="l">itens</div>
+  </div>
+  <div class="stat-card">
+    <div class="n" id="statUnits">0</div>
+    <div class="l">unidades</div>
+  </div>
+  <div class="stat-card low">
+    <div class="n" id="statLow">0</div>
+    <div class="l">estoque baixo</div>
+  </div>
+</div>
+
+<div class="list" id="listWrap">
+  <div id="tableBody"></div>
+  <div class="empty-state" id="emptyState" style="display:none">
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <div class="t">Nada por aqui</div>
+    <div class="s">Nenhum produto corresponde à busca ou filtro.</div>
+  </div>
+</div>
+
+<button class="fab" id="addBtn">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
+<nav class="tabbar">
+  <button class="tab-item active" id="tabAll">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+    <span class="label">Todos</span>
+  </button>
+  <button class="tab-item" id="tabLow">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+    <span class="label">Baixo</span>
+  </button>
+  <button class="tab-item" id="tabExport">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V3m0 12-4-4m4 4 4-4M3 17v2a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2"/></svg>
+    <span class="label">Exportar</span>
+  </button>
+  <button class="tab-item" id="tabReset">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+    <span class="label">Restaurar</span>
+  </button>
+</nav>
+
+<!-- Filter sheet -->
+<div class="sheet-bg" id="filterSheetBg"></div>
+<div class="sheet" id="filterSheet">
+  <div class="sheet-handle"></div>
+  <h3>Filtrar e ordenar</h3>
+  <div class="sub">Ajuste a visualização do estoque</div>
+
+  <div class="field">
+    <label>Grupo</label>
+    <div class="segmented" id="groupSegmented"></div>
+  </div>
+
+  <div class="field">
+    <label>Ordenar por</label>
+    <div class="sort-list" id="sortList">
+      <div class="sort-opt" data-sort="nome-asc"><span>Nome (A–Z)</span><span class="check">✓</span></div>
+      <div class="sort-opt" data-sort="qtd-asc"><span>Quantidade (menor primeiro)</span><span class="check">✓</span></div>
+      <div class="sort-opt" data-sort="qtd-desc"><span>Quantidade (maior primeiro)</span><span class="check">✓</span></div>
+      <div class="sort-opt" data-sort="grupo-asc"><span>Grupo</span><span class="check">✓</span></div>
+    </div>
+  </div>
+
+  <div class="toggle-row">
+    <span class="t">Mostrar só estoque baixo (≤ 5)</span>
+    <div class="switch" id="lowSwitch"><div class="knob"></div></div>
+  </div>
+
+  <div class="sheet-actions">
+    <div class="sheet-btn ghost" id="clearFilters">Limpar</div>
+    <div class="sheet-btn primary" id="applyFilters">Aplicar</div>
+  </div>
+</div>
+
+<!-- Add item sheet -->
+<div class="sheet-bg" id="addSheetBg"></div>
+<div class="sheet" id="addSheet">
+  <div class="sheet-handle"></div>
+  <h3>Novo produto</h3>
+  <div class="sub">Adicione um item ao estoque</div>
+
+  <div class="field">
+    <label>Código de barras</label>
+    <input type="text" id="newCodigo" placeholder="789..." inputmode="numeric">
+  </div>
+  <div class="field">
+    <label>Nome do produto</label>
+    <input type="text" id="newNome" placeholder="Ex: COCA COLA PET 2L" autocapitalize="characters">
+  </div>
+  <div class="field">
+    <label>Grupo</label>
+    <div class="segmented" id="newGroupSegmented"></div>
+  </div>
+  <div class="field">
+    <label>Quantidade inicial</label>
+    <input type="number" id="newQtd" placeholder="0" min="0" inputmode="numeric">
+  </div>
+
+  <div class="sheet-actions">
+    <div class="sheet-btn ghost" id="cancelAdd">Cancelar</div>
+    <div class="sheet-btn primary" id="confirmAdd">Adicionar</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// Dados extraídos do Relatório de Estoque - Auto Posto Jales LTDA - 16/09/2026
+// Quantidades já ajustadas conforme anotações a caneta nas notas
+const PRODUTOS_INICIAIS = [
+  // GRUPO 631 - REFRIGERANTES
+  {codigo:"7894900060010", nome:"SPRITE ZERO LT 350", grupo:"Refrigerantes", qtd:2},
+  {codigo:"7894900011715", nome:"COCA COLA PET 1L", grupo:"Refrigerantes", qtd:6},
+  {codigo:"7894900681246", nome:"SPRITE PET 600ML", grupo:"Refrigerantes", qtd:1},
+  {codigo:"7894900701715", nome:"COCA COLA ZERO PET", grupo:"Refrigerantes", qtd:5},
+  {codigo:"7896317100617", nome:"COTUBA GUARANA PET", grupo:"Refrigerantes", qtd:9},
+  {codigo:"7896317102918", nome:"COTUBA GUARANA PET", grupo:"Refrigerantes", qtd:19},
+  {codigo:"7896317104028", nome:"COTUBA GUARANA LT", grupo:"Refrigerantes", qtd:1},
+  {codigo:"7896317105025", nome:"COTUBA GUARANA PET", grupo:"Refrigerantes", qtd:7},
+  {codigo:"7896052604999", nome:"ITUBAINA RETRO ZER", grupo:"Refrigerantes", qtd:6},
+  {codigo:"7891991001342", nome:"ANTARCTICA GUARANA", grupo:"Refrigerantes", qtd:1},
+  {codigo:"7894900027013", nome:"COCA COLA PET 2L", grupo:"Refrigerantes", qtd:7},
+  {codigo:"7894900701517", nome:"COCA COLA ZERO PET", grupo:"Refrigerantes", qtd:4},
+  {codigo:"7894900031515", nome:"FANTA LARANJA PET", grupo:"Refrigerantes", qtd:10},
+  {codigo:"7894900051513", nome:"FANTA UVA PET 2L", grupo:"Refrigerantes", qtd:8},
+  {codigo:"7892840800000", nome:"PEPSI PET 2L", grupo:"Refrigerantes", qtd:1},
+  {codigo:"7894900681000", nome:"SPRITE ORIGINAL PE", grupo:"Refrigerantes", qtd:1},
+  {codigo:"7896317101140", nome:"COTUBAINA GF 355ML", grupo:"Refrigerantes", qtd:2},
+  {codigo:"7896317103908", nome:"COTUBA GUARANA PET", grupo:"Refrigerantes", qtd:6},
+  {codigo:"7897162300061", nome:"SABORAKI TUBAINA P", grupo:"Refrigerantes", qtd:4},
+  {codigo:"7897162304007", nome:"SABORAKI TUBAINA P", grupo:"Refrigerantes", qtd:8},
+  {codigo:"7897162300139", nome:"SABORAKI TUBAINA 2", grupo:"Refrigerantes", qtd:3},
+  {codigo:"7897162300023", nome:"SABORAKI GUARANA 2", grupo:"Refrigerantes", qtd:7},
+  {codigo:"7896052607228", nome:"FYS AGUA TONICA LT", grupo:"Refrigerantes", qtd:8},
+  {codigo:"7897162300559", nome:"AGUA TONICA SABORA", grupo:"Refrigerantes", qtd:15},
+  {codigo:"7891991000840", nome:"ANTARCTICA TONICA", grupo:"Refrigerantes", qtd:12},
+  {codigo:"7894900030013", nome:"FANTA LARANJA LT 3", grupo:"Refrigerantes", qtd:5},
+  {codigo:"7894900050011", nome:"FANTA UVA LT 350ML", grupo:"Refrigerantes", qtd:11},
+  {codigo:"7892840800079", nome:"PEPSI COLA LT 350M", grupo:"Refrigerantes", qtd:7},
+  {codigo:"7891991000826", nome:"ANTARCTICA GUARANA", grupo:"Refrigerantes", qtd:17},
+  {codigo:"7894900010015", nome:"COCA COLA LT 350ML", grupo:"Refrigerantes", qtd:1},
+  {codigo:"7894900700015", nome:"COCA COLA ZERO LT", grupo:"Refrigerantes", qtd:11},
+  {codigo:"7894900091007", nome:"FANTA MARACUJA LT", grupo:"Refrigerantes", qtd:4},
+  {codigo:"7896052603497", nome:"ITUBAINA ORIGINAL", grupo:"Refrigerantes", qtd:11},
+  {codigo:"7894900681017", nome:"SPRITE ORIGINAL LT", grupo:"Refrigerantes", qtd:10},
+  {codigo:"7892840812850", nome:"H2O LIMONETO PET 5", grupo:"Refrigerantes", qtd:4},
+  {codigo:"7894900025019", nome:"COCA COLA PLUS CAF", grupo:"Refrigerantes", qtd:4},
+  {codigo:"7894900010398", nome:"COCA COLA LT 220ML", grupo:"Refrigerantes", qtd:4},
+  {codigo:"7894900700398", nome:"COCA COLA ZERO LT", grupo:"Refrigerantes", qtd:2},
+  {codigo:"78908901", nome:"COCA COLA PET 200M", grupo:"Refrigerantes", qtd:5},
+  {codigo:"78933873", nome:"COCA COLA ZERO PET", grupo:"Refrigerantes", qtd:11},
+  {codigo:"7897162304014", nome:"SABORAKI LARANJA P", grupo:"Refrigerantes", qtd:4},
+  {codigo:"7897162300016", nome:"SABORAKI LARANJA 2", grupo:"Refrigerantes", qtd:7},
+
+  // GRUPO 613 - CERVEJAS
+  {codigo:"7891991010481", nome:"BUDWEISER LT 350ML", grupo:"Cervejas", qtd:16},
+  {codigo:"7891149108718", nome:"CORONA EXTRA LN 330", grupo:"Cervejas", qtd:17},
+  {codigo:"7897395060107", nome:"CRYSTAL LT 350ML", grupo:"Cervejas", qtd:15},
+  {codigo:"7896045506910", nome:"HEINEKEN ZERO ALCOO", grupo:"Cervejas", qtd:19},
+  {codigo:"78936683", nome:"HEINEKEN LN 330ML", grupo:"Cervejas", qtd:460},
+  {codigo:"7896045506873", nome:"HEINEKEN LT 350ML", grupo:"Cervejas", qtd:18},
+  {codigo:"7896045506880", nome:"HEINEKEN LT 350ML", grupo:"Cervejas", qtd:0},
+  {codigo:"7896045506040", nome:"HEINEKEN ZERO ALCOO", grupo:"Cervejas", qtd:14},
+  {codigo:"7896045506057", nome:"HEINEKEN ZERO ALCOO", grupo:"Cervejas", qtd:13},
+  {codigo:"7898915949162", nome:"IMPERIO GOLD LN 210", grupo:"Cervejas", qtd:17},
+  {codigo:"7898915949155", nome:"IMPERIO LAGER LN 27", grupo:"Cervejas", qtd:7},
+  {codigo:"7898915949209", nome:"IMPERIO PURO MALTE", grupo:"Cervejas", qtd:8},
+  {codigo:"7897395040390", nome:"ITAIPAVA ZERO ALCOO", grupo:"Cervejas", qtd:22},
+  {codigo:"7897395001032", nome:"PETRA PURO MALTE LN", grupo:"Cervejas", qtd:35},
+  {codigo:"7897395001063", nome:"PETRA PREMIUM ESCUR", grupo:"Cervejas", qtd:16},
+  {codigo:"7891991015462", nome:"STELLA ARTOIS LAGER", grupo:"Cervejas", qtd:14},
+  {codigo:"7896045505319", nome:"AMSTEL LT 269ML", grupo:"Cervejas", qtd:22},
+  {codigo:"7897395020194", nome:"ITAIPAVA MALZBIER L", grupo:"Cervejas", qtd:7},
+  {codigo:"7897395099695", nome:"PETRA PURO MALTE LT", grupo:"Cervejas", qtd:1},
+  {codigo:"7898738660107", nome:"IMPERIO LAGER LN 33", grupo:"Cervejas", qtd:32},
+  {codigo:"7898915949940", nome:"IMPERIO PURO MALTE", grupo:"Cervejas", qtd:12},
+  {codigo:"7898915949957", nome:"IMPERIO ULTRA LN 27", grupo:"Cervejas", qtd:13},
+  {codigo:"7891991015493", nome:"ORIGINAL LT 350ML", grupo:"Cervejas", qtd:5},
+  {codigo:"7891991000796", nome:"ANTARCTICA PILSEN L", grupo:"Cervejas", qtd:11},
+  {codigo:"7891991294942", nome:"BRAHMA DUPLO MALTE", grupo:"Cervejas", qtd:11},
+  {codigo:"7891149010509", nome:"BRAHMA LT 350ML", grupo:"Cervejas", qtd:28},
+  {codigo:"7898915949193", nome:"IMPERIO PILSEN LT 4", grupo:"Cervejas", qtd:9},
+  {codigo:"7897395020101", nome:"ITAIPAVA LT 350ML", grupo:"Cervejas", qtd:11},
+  {codigo:"7897395099329", nome:"PETRA PURO MALTE LT", grupo:"Cervejas", qtd:37},
+  {codigo:"7891149200504", nome:"SKOL LT 350ML", grupo:"Cervejas", qtd:24},
+  {codigo:"7896045506934", nome:"AMSTEL LT 350ML", grupo:"Cervejas", qtd:10},
+  {codigo:"7898377663071", nome:"PETRA ULTRA SEM GLU", grupo:"Cervejas", qtd:4},
+  {codigo:"7896045507696", nome:"HEINEKEN ULTIMATE S", grupo:"Cervejas", qtd:11},
+  {codigo:"7896045507726", nome:"HEINEKEN ULTIMATE S", grupo:"Cervejas", qtd:8},
+  {codigo:"7896045507788", nome:"AMSTEL ULTRA GFA 33", grupo:"Cervejas", qtd:12},
+
+  // GRUPO 628 - ENERGETICOS
+  {codigo:"9002490275020", nome:"RED BULL SUGARFREE", grupo:"Energéticos", qtd:8},
+  {codigo:"9002490280901", nome:"RED BULL SUGARFREE", grupo:"Energéticos", qtd:8},
+  {codigo:"9002490275013", nome:"RED BULL SUMMER MA", grupo:"Energéticos", qtd:8},
+  {codigo:"070847022305", nome:"MONSTER ABSOLUTELY", grupo:"Energéticos", qtd:2},
+  {codigo:"070847022015", nome:"MONSTER ENERGY TRA", grupo:"Energéticos", qtd:6},
+  {codigo:"70847022015", nome:"MONSTER ENERGY TRA", grupo:"Energéticos", qtd:8},
+  {codigo:"1220000250147", nome:"MONSTER KHAOTIC LT", grupo:"Energéticos", qtd:8},
+  {codigo:"70847033301", nome:"MONSTER MANGO LOCO", grupo:"Energéticos", qtd:7},
+  {codigo:"070847033301", nome:"MONSTER MANGO LOCO", grupo:"Energéticos", qtd:0},
+  {codigo:"0070847033301", nome:"MONSTER MANGO LOCO", grupo:"Energéticos", qtd:0},
+  {codigo:"1220000250031", nome:"MONSTER PACIFIC PU", grupo:"Energéticos", qtd:4},
+  {codigo:"070847022206", nome:"MONSTER ULTRA ZERO", grupo:"Energéticos", qtd:3},
+  {codigo:"070847033929", nome:"MONSTER ULTRA VIOL", grupo:"Energéticos", qtd:6},
+  {codigo:"70847033929", nome:"MONSTER ULTRA VIOL", grupo:"Energéticos", qtd:0},
+  {codigo:"1220000250222", nome:"MONSTER ULTRA WATE", grupo:"Energéticos", qtd:9},
+  {codigo:"9002490264093", nome:"RED BULL CEREJA E", grupo:"Energéticos", qtd:8},
+  {codigo:"0611269991000", nome:"RED BULL LT 250ML", grupo:"Energéticos", qtd:9},
+  {codigo:"611269991000", nome:"RED BULL LT 250ML", grupo:"Energéticos", qtd:0},
+  {codigo:"9002490209346", nome:"RED BULL LT 355ML", grupo:"Energéticos", qtd:10},
+  {codigo:"9002490214166", nome:"RED BULL LT 473ML", grupo:"Energéticos", qtd:12},
+  {codigo:"9002490247379", nome:"RED BULL MELANCIA", grupo:"Energéticos", qtd:2},
+  {codigo:"9002490258825", nome:"RED BULL PESSEGO E", grupo:"Energéticos", qtd:1},
+  {codigo:"611269101713", nome:"RED BULL SUGARFREE", grupo:"Energéticos", qtd:29},
+  {codigo:"9002490243678", nome:"RED BULL SUGARFREE", grupo:"Energéticos", qtd:10},
+  {codigo:"9002490229160", nome:"RED BULL TROPICAL", grupo:"Energéticos", qtd:5},
+  {codigo:"7897395031602", nome:"TNT ENERGY DRINK L", grupo:"Energéticos", qtd:2},
+  {codigo:"7897395031626", nome:"TNT ENERGY DRINK L", grupo:"Energéticos", qtd:6},
+  {codigo:"7898377662241", nome:"TNT FOCUS PINK LIM", grupo:"Energéticos", qtd:5},
+  {codigo:"7897395000363", nome:"TNT FOCUS FANTASY", grupo:"Energéticos", qtd:3},
+  {codigo:"7897395001681", nome:"TNT JUICE MANGO SU", grupo:"Energéticos", qtd:6},
+  {codigo:"7898377662081", nome:"TNT TANGERINA ZERO", grupo:"Energéticos", qtd:2},
+  {codigo:"7897395001735", nome:"TNT ZERO ACUCAR LT", grupo:"Energéticos", qtd:2},
+  {codigo:"0789893889007", nome:"MONSTER ENERGY ZER", grupo:"Energéticos", qtd:16},
+  {codigo:"7898938890076", nome:"MONSTER ENERGY ZER", grupo:"Energéticos", qtd:0},
+  {codigo:"7896094919693", nome:"BEB ENGOV AFTER CITRUS 2", grupo:"Energéticos", qtd:5},
+  {codigo:"7898938890045", nome:"MONSTER PIPELINE P", grupo:"Energéticos", qtd:8},
+  {codigo:"7898938890113", nome:"MONSTER ULTRA FIES", grupo:"Energéticos", qtd:3},
+  {codigo:"9002490283469", nome:"RED BULL SUGARFREE", grupo:"Energéticos", qtd:8},
+  {codigo:"7898938890120", nome:"MONSTER JUICE RIO", grupo:"Energéticos", qtd:10},
+  {codigo:"9002490287153", nome:"RED BULL SUGARFREE", grupo:"Energéticos", qtd:8},
+  {codigo:"9002490290450", nome:"RED BULL SUGARFREE", grupo:"Energéticos", qtd:6},
+  {codigo:"9002490290573", nome:"RED BULL ZERO LT 3", grupo:"Energéticos", qtd:8},
+  {codigo:"7898770420011", nome:"MONSTER STRAWMBERR", grupo:"Energéticos", qtd:7},
+  {codigo:"7898377662968", nome:"TNT JUICE TROPICAL", grupo:"Energéticos", qtd:5},
+  {codigo:"7898377661718", nome:"ISOT TNT LIMAO 500ML", grupo:"Energéticos", qtd:1},
+  {codigo:"7898377661732", nome:"ISOT TNT TANGERINA 500ML", grupo:"Energéticos", qtd:11},
+  {codigo:"7898377661756", nome:"ISOT TNT UVA 500ML", grupo:"Energéticos", qtd:5},
+  {codigo:"7898738660152", nome:"DOPAMINA TROPICAL", grupo:"Energéticos", qtd:10},
+  {codigo:"7898738660114", nome:"DOPAMINA EXTREME L", grupo:"Energéticos", qtd:7},
+  {codigo:"7898738660138", nome:"DOPAMINA TUTTIFRUT", grupo:"Energéticos", qtd:9},
+  {codigo:"7898738660633", nome:"DOPAMINA BLACK LT", grupo:"Energéticos", qtd:6},
+  {codigo:"7898377662944", nome:"TNT FOCUS BERRY LT", grupo:"Energéticos", qtd:6},
+  {codigo:"7898377662982", nome:"TNT PESSEGO ZERO A", grupo:"Energéticos", qtd:5},
+  {codigo:"7898915949698", nome:"DOPAMINA ENERGY DR", grupo:"Energéticos", qtd:1},
+  {codigo:"9002490300838", nome:"RED BULL SUGARFREE", grupo:"Energéticos", qtd:7},
+  {codigo:"7897162306049", nome:"HBOMB TRADICIONAL", grupo:"Energéticos", qtd:6},
+  {codigo:"7897162306025", nome:"HBOMB FRUTAS TROPI", grupo:"Energéticos", qtd:5},
+  {codigo:"7897162306001", nome:"HBOMB MELANCIA LT", grupo:"Energéticos", qtd:8},
+
+  // GRUPO 975 - TRADICIONAL (Cigarros)
+  {codigo:"78938922", nome:"CIG JTI CAMEL BLUE", grupo:"Cigarros", qtd:10},
+  {codigo:"78938939", nome:"CIG JTI CAMEL YELLOW", grupo:"Cigarros", qtd:13},
+  {codigo:"78939929", nome:"CIG JTI DJARUM BLACK", grupo:"Cigarros", qtd:8},
+  {codigo:"78939912", nome:"CIG JTI DJARUM BLACK MEN", grupo:"Cigarros", qtd:3},
+  {codigo:"78943360", nome:"CIG JTI WINSTON BLUE BOX", grupo:"Cigarros", qtd:5},
+  {codigo:"78943353", nome:"CIG JTI WINSTON RED CLAS", grupo:"Cigarros", qtd:6},
+  {codigo:"78940093", nome:"CIG JTI WINSTON PURPLE M", grupo:"Cigarros", qtd:7},
+  {codigo:"78939103", nome:"CIG JTI WINSTON SILVER S", grupo:"Cigarros", qtd:4},
+  {codigo:"78937680", nome:"CIG PMB CHESTERFIELD BLU", grupo:"Cigarros", qtd:11},
+  {codigo:"78939424", nome:"CIG PMB CHESTERFIELD ORI", grupo:"Cigarros", qtd:9},
+  {codigo:"78942660", nome:"CIG PMB CHESTERFIELD REM", grupo:"Cigarros", qtd:4},
+  {codigo:"78946675", nome:"CIG PMB CHESTERFIELD REM", grupo:"Cigarros", qtd:8},
+  {codigo:"78938380", nome:"CIG PMB CHESTERFIELD REM", grupo:"Cigarros", qtd:6},
+  {codigo:"78947214", nome:"CIG PMB CHESTERFIELD TER", grupo:"Cigarros", qtd:9},
+  {codigo:"78942318", nome:"CIG PMB CHESTERFIELD TER", grupo:"Cigarros", qtd:14},
+  {codigo:"78900134", nome:"CIG PMB MARLBORO GOLD BO", grupo:"Cigarros", qtd:12},
+  {codigo:"78900073", nome:"CIG PMB MARLBORO GOLD MA", grupo:"Cigarros", qtd:9},
+  {codigo:"78941618", nome:"CIG PMB MARLBORO GOLD SE", grupo:"Cigarros", qtd:9},
+  {codigo:"78900066", nome:"CIG PMB MARLBORO ICE BLE", grupo:"Cigarros", qtd:6},
+  {codigo:"78903418", nome:"CIG PMB MARLBORO RED BOX", grupo:"Cigarros", qtd:8},
+  {codigo:"78922594", nome:"CIG PMB MARLBORO RED MAC", grupo:"Cigarros", qtd:6},
+  {codigo:"78940871", nome:"CIG PMB MARLBORO RED SEL", grupo:"Cigarros", qtd:5},
+  {codigo:"78946286", nome:"CIG SC DUNHILL EVOQUE DO", grupo:"Cigarros", qtd:10},
+  {codigo:"78947535", nome:"CIG SC DUNHILL EVOQUE DO", grupo:"Cigarros", qtd:10},
+  {codigo:"78943148", nome:"CIG SC KENT BLUE MACO", grupo:"Cigarros", qtd:10},
+  {codigo:"78942936", nome:"CIG SC KENT SILVER MACO", grupo:"Cigarros", qtd:8},
+  {codigo:"78946439", nome:"CIG SC LUCKY STRIKE BLUE", grupo:"Cigarros", qtd:15},
+  {codigo:"78946392", nome:"CIG SC LUCKY STRIKE RED", grupo:"Cigarros", qtd:13},
+  {codigo:"78942806", nome:"CIG SC ROTHMANS INTERNAC", grupo:"Cigarros", qtd:14},
+  {codigo:"78942813", nome:"CIG SC ROTHMANS INTER CL", grupo:"Cigarros", qtd:12},
+  {codigo:"78943087", nome:"CIG SC ROTHMANS DOUBLE C", grupo:"Cigarros", qtd:5},
+  {codigo:"78944497", nome:"CIG SC ROTHMANS OF LONDO", grupo:"Cigarros", qtd:4},
+  {codigo:"78939974", nome:"CIG JTI WINSTON BLENDER", grupo:"Cigarros", qtd:2},
+  {codigo:"78946255", nome:"CIG SC LUCKY STRIKE RED", grupo:"Cigarros", qtd:1},
+  {codigo:"78947825", nome:"CIG JTI DJARUM BLACK ICE", grupo:"Cigarros", qtd:5},
+  {codigo:"78947795", nome:"CIG JTI CAMEL BERRY", grupo:"Cigarros", qtd:3},
+  {codigo:"78946293", nome:"CIG SC LUCKY STRIKE DOUB", grupo:"Cigarros", qtd:7},
+  {codigo:"78948174", nome:"CIG PMB HARMONY SELECION", grupo:"Cigarros", qtd:8},
+  {codigo:"78946798", nome:"CIG PMB MARLBORO GOLD SE", grupo:"Cigarros", qtd:9},
+  {codigo:"78946781", nome:"CIG PMB MARLBORO RED SEL", grupo:"Cigarros", qtd:4},
+  {codigo:"78947474", nome:"CIG SC DUNHILL BLUE BLEN", grupo:"Cigarros", qtd:9},
+  {codigo:"78947467", nome:"CIG SC DUNHILL CARLTON B", grupo:"Cigarros", qtd:11},
+  {codigo:"78947528", nome:"CIG SC DUNHILL ICE REFRE", grupo:"Cigarros", qtd:8},
+  {codigo:"78947542", nome:"CIG SC DUNHILL INSIGNA B", grupo:"Cigarros", qtd:14},
+  {codigo:"78947504", nome:"CIG SC DUNHILL INSIGNA R", grupo:"Cigarros", qtd:12},
+  {codigo:"78948082", nome:"CIG JTI CAMEL YELLOW TRO", grupo:"Cigarros", qtd:10},
+  {codigo:"78948044", nome:"CIG JTI CAMEL RED DUN", grupo:"Cigarros", qtd:10},
+  {codigo:"78946415", nome:"CIG SC LUCKY STRIKE DOUB", grupo:"Cigarros", qtd:7},
+  {codigo:"78947634", nome:"CIG SC ROTHMANS GLOBAL S", grupo:"Cigarros", qtd:8},
+  {codigo:"78947610", nome:"CIG SC ROTHMANS GLOBAL B", grupo:"Cigarros", qtd:3},
+  {codigo:"78947627", nome:"CIG SC ROTHMANS RED OF L", grupo:"Cigarros", qtd:3},
+  {codigo:"78948877", nome:"CIG PMB MARLBORO KRETEK", grupo:"Cigarros", qtd:5},
+
+  // GRUPO 626 - AGUA MINERAL
+  {codigo:"7894900531015", nome:"AGUA MIN CRYSTAL C GAS P", grupo:"Água Mineral", qtd:7},
+  {codigo:"7894900530032", nome:"AGUA MIN CRYSTAL S GAS P", grupo:"Água Mineral", qtd:3},
+  {codigo:"7897162300412", nome:"AGUA MIN SABORAKI S GAS", grupo:"Água Mineral", qtd:5},
+  {codigo:"7897162304106", nome:"AGUA MIN SABORAKI S GAS", grupo:"Água Mineral", qtd:3},
+  {codigo:"7898915949537", nome:"AGUA MIN PETROPOLITANA S", grupo:"Água Mineral", qtd:13},
+  {codigo:"7898915949544", nome:"AGUA MINERAL PETROPOLITA", grupo:"Água Mineral", qtd:9},
+  {codigo:"7894900531008", nome:"AGUA MIN CRYSTAL C GAS P", grupo:"Água Mineral", qtd:14},
+  {codigo:"7894900530001", nome:"AGUA MIN CRYSTAL S GAS P", grupo:"Água Mineral", qtd:31},
+  {codigo:"7897395032326", nome:"AGUA MIN PETRA S GAS PET", grupo:"Água Mineral", qtd:33},
+  {codigo:"7897123884036", nome:"AGUA MIN PRATA C GAS PET", grupo:"Água Mineral", qtd:10},
+  {codigo:"7897123883077", nome:"AGUA MIN PRATA S GAS PET", grupo:"Água Mineral", qtd:26},
+  {codigo:"7897162300306", nome:"AGUA MIN SABORAKI NATURA", grupo:"Água Mineral", qtd:39},
+  {codigo:"7897162300313", nome:"AGUA MIN SABORAKI C GAS", grupo:"Água Mineral", qtd:16},
+  {codigo:"7897162304113", nome:"AGUA MIN SABORAKI C GAS", grupo:"Água Mineral", qtd:9},
+  {codigo:"7897162300436", nome:"AGUA SABORAKI C GAS PET", grupo:"Água Mineral", qtd:6},
+  {codigo:"7894900521504", nome:"AGUA SABOR CRYSTAL FRUTA", grupo:"Água Mineral", qtd:2},
+  {codigo:"7894900521009", nome:"AGUA SABOR CRYSTAL TANGE", grupo:"Água Mineral", qtd:7},
+  {codigo:"7894900523003", nome:"AGUA SABOR CRYSTAL MELAN", grupo:"Água Mineral", qtd:6},
+];
+
+(function(){
+  const STORAGE_KEY = 'posto_jales_estoque_v2';
+  const GROUP_COLORS = {
+    'Refrigerantes': '#4bb3e6',
+    'Cervejas': '#e8b94a',
+    'Energéticos': '#ea6a5f',
+    'Cigarros': '#a996e6',
+    'Água Mineral': '#6fae4f',
+    'Outros': '#97a390'
+  };
+
+  function loadData(){
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){ try { return JSON.parse(raw); } catch(e){} }
+    const seeded = PRODUTOS_INICIAIS.map((p,i) => ({ id: i+1, ...p }));
+    save(seeded);
+    return seeded;
+  }
+  function save(d){ localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }
+
+  let data = loadData();
+  let state = {
+    search: '',
+    group: 'Todos',
+    lowOnly: false,
+    sort: 'nome-asc'
+  };
+
+  const $ = id => document.getElementById(id);
+  const tableBody = $('tableBody');
+  const searchInput = $('searchInput');
+  const emptyState = $('emptyState');
+
+  function getGroups(){ return Array.from(new Set(data.map(d=>d.grupo))).sort(); }
+
+  function vibrate(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
+
+  function showToast(msg, icon){
+    const t = $('toast');
+    t.innerHTML = (icon || '') + msg;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(()=> t.classList.remove('show'), 1800);
+  }
+
+  function renderChips(){
+    const groups = getGroups();
+    const all = ['Todos', ...groups];
+    $('chipsRow').innerHTML = all.map(g => {
+      const active = g === state.group ? 'active' : '';
+      const color = GROUP_COLORS[g] || '#97a390';
+      const count = g === 'Todos' ? data.length : data.filter(p=>p.grupo===g).length;
+      return `<div class="chip ${active}" data-group="${g}">
+        ${g!=='Todos' ? `<span class="dot" style="background:${color}"></span>` : ''}
+        ${g} <span class="count">${count}</span>
+      </div>`;
+    }).join('');
+    document.querySelectorAll('.chip').forEach(c=>{
+      c.addEventListener('click', ()=>{
+        state.group = c.dataset.group;
+        vibrate(8);
+        render();
+      });
+    });
+  }
+
+  function renderGroupSegmented(){
+    const groups = getGroups();
+    const all = ['Todos', ...groups];
+    $('groupSegmented').innerHTML = all.map(g=>{
+      const active = g === state.group ? 'active' : '';
+      return `<div class="opt ${active}" data-group="${g}">${g}</div>`;
+    }).join('');
+    document.querySelectorAll('#groupSegmented .opt').forEach(o=>{
+      o.addEventListener('click', ()=>{
+        state.group = o.dataset.group;
+        renderGroupSegmented();
+      });
+    });
+
+    $('newGroupSegmented').innerHTML = groups.map((g,i)=>{
+      return `<div class="opt ${i===0?'active':''}" data-group="${g}">${g}</div>`;
+    }).join('');
+    document.querySelectorAll('#newGroupSegmented .opt').forEach(o=>{
+      o.addEventListener('click', ()=>{
+        document.querySelectorAll('#newGroupSegmented .opt').forEach(x=>x.classList.remove('active'));
+        o.classList.add('active');
+      });
+    });
+  }
+
+  function getFiltered(){
+    let list = [...data];
+    if(state.group !== 'Todos') list = list.filter(p=>p.grupo===state.group);
+    if(state.search){
+      const t = state.search.toLowerCase();
+      list = list.filter(p => p.nome.toLowerCase().includes(t) || p.codigo.toLowerCase().includes(t));
+    }
+    if(state.lowOnly) list = list.filter(p=>p.qtd<=5);
+
+    const [key, dir] = state.sort.split('-');
+    list.sort((a,b)=>{
+      let va=a[key], vb=b[key];
+      if(typeof va==='string'){ va=va.toLowerCase(); vb=vb.toLowerCase(); }
+      if(va<vb) return dir==='asc'?-1:1;
+      if(va>vb) return dir==='asc'?1:-1;
+      return 0;
+    });
+    return list;
+  }
+
+  function qtyClass(q){ if(q<=5) return 'low'; if(q<=10) return 'mid'; return ''; }
+
+  function renderStats(){
+    $('statTotal').textContent = data.length;
+    $('statUnits').textContent = data.reduce((s,p)=>s+Number(p.qtd),0);
+    $('statLow').textContent = data.filter(p=>p.qtd<=5).length;
+    const d = new Date();
+    $('lastUpdate').textContent = d.toLocaleDateString('pt-BR') + ' · ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  let touchStartX = 0, touchItemId = null;
+
+  function render(){
+    renderChips();
+    renderGroupSegmented();
+    renderStats();
+
+    const filterDot = $('filterDot');
+    filterDot.classList.toggle('show', state.group!=='Todos' || state.lowOnly || state.sort!=='nome-asc');
+
+    const list = getFiltered();
+    if(list.length===0){
+      tableBody.innerHTML='';
+      emptyState.style.display='block';
+      return;
+    }
+    emptyState.style.display='none';
+
+    tableBody.innerHTML = list.map(p=>{
+      const color = GROUP_COLORS[p.grupo] || '#97a390';
+      return `
+      <div class="item-card" data-id="${p.id}">
+        <div class="stripe" style="background:${color}"></div>
+        <div class="item-info">
+          <div class="name">${p.nome}</div>
+          <div class="meta">
+            <span class="group-badge" style="color:${color}">${p.grupo}</span>
+            <span class="code">${p.codigo}</span>
+          </div>
+        </div>
+        <div class="qty-control">
+          <button class="qty-btn minus" data-action="dec" data-id="${p.id}">−</button>
+          <span class="qty-value ${qtyClass(p.qtd)}">${p.qtd}</span>
+          <button class="qty-btn plus" data-action="inc" data-id="${p.id}">+</button>
+        </div>
+        <div class="swipe-del" data-action="del" data-id="${p.id}">Remover</div>
+      </div>`;
+    }).join('');
+
+    attachSwipeHandlers();
+  }
+
+  function attachSwipeHandlers(){
+    document.querySelectorAll('.item-card').forEach(card=>{
+      let startX=0, currentX=0, dragging=false;
+      card.addEventListener('touchstart', e=>{
+        startX = e.touches[0].clientX;
+        dragging = true;
+      }, {passive:true});
+      card.addEventListener('touchmove', e=>{
+        if(!dragging) return;
+        currentX = e.touches[0].clientX - startX;
+        if(currentX < -20){
+          const info = card.querySelector('.item-info');
+          const qc = card.querySelector('.qty-control');
+          const shift = Math.max(currentX, -84);
+          info.style.transform = `translateX(${shift}px)`;
+          qc.style.transform = `translateX(${shift}px)`;
+        }
+      }, {passive:true});
+      card.addEventListener('touchend', ()=>{
+        dragging = false;
+        if(currentX < -40){
+          card.classList.add('swiped');
+        } else {
+          card.querySelector('.item-info').style.transform = '';
+          card.querySelector('.qty-control').style.transform = '';
+        }
+        currentX = 0;
+      });
+    });
+  }
+
+  document.addEventListener('click', (e)=>{
+    // close swiped cards when tapping elsewhere
+    const openCard = document.querySelector('.item-card.swiped');
+    if(openCard && !e.target.closest('.item-card.swiped')){
+      openCard.classList.remove('swiped');
+      openCard.querySelector('.item-info').style.transform='';
+      openCard.querySelector('.qty-control').style.transform='';
+    }
+  });
+
+  tableBody.addEventListener('click', (e)=>{
+    const btn = e.target.closest('[data-action]');
+    if(!btn) return;
+    const id = Number(btn.dataset.id);
+    const item = data.find(p=>p.id===id);
+    if(!item) return;
+    const action = btn.dataset.action;
+
+    if(action==='inc'){ item.qtd = Number(item.qtd)+1; vibrate(6); save(data); render(); }
+    if(action==='dec'){ item.qtd = Math.max(0, Number(item.qtd)-1); vibrate(6); save(data); render(); }
+    if(action==='del'){
+      vibrate(15);
+      data = data.filter(p=>p.id!==id);
+      save(data);
+      showToast('Produto removido');
+      render();
+    }
+  });
+
+  // search
+  searchInput.addEventListener('input', ()=>{
+    state.search = searchInput.value.trim();
+    $('clearSearch').classList.toggle('show', !!state.search);
+    render();
+  });
+  $('clearSearch').addEventListener('click', ()=>{
+    searchInput.value=''; state.search=''; $('clearSearch').classList.remove('show'); render();
+  });
+
+  // filter sheet
+  function openSheet(bg, sheet){ bg.classList.add('show'); sheet.classList.add('show'); document.body.style.overflow='hidden'; }
+  function closeSheet(bg, sheet){ bg.classList.remove('show'); sheet.classList.remove('show'); document.body.style.overflow=''; }
+
+  const filterSheetBg = $('filterSheetBg'), filterSheet = $('filterSheet');
+  $('openFilters').addEventListener('click', ()=> openSheet(filterSheetBg, filterSheet));
+  filterSheetBg.addEventListener('click', (e)=>{ if(e.target===filterSheetBg) closeSheet(filterSheetBg, filterSheet); });
+
+  document.querySelectorAll('.sort-opt').forEach(opt=>{
+    opt.addEventListener('click', ()=>{
+      state.sort = opt.dataset.sort;
+      document.querySelectorAll('.sort-opt').forEach(o=>o.classList.remove('active'));
+      opt.classList.add('active');
+    });
+  });
+  document.querySelector(`.sort-opt[data-sort="${state.sort}"]`)?.classList.add('active');
+
+  const lowSwitch = $('lowSwitch');
+  lowSwitch.addEventListener('click', ()=>{
+    state.lowOnly = !state.lowOnly;
+    lowSwitch.classList.toggle('on', state.lowOnly);
+  });
+
+  $('applyFilters').addEventListener('click', ()=>{
+    closeSheet(filterSheetBg, filterSheet);
+    render();
+  });
+  $('clearFilters').addEventListener('click', ()=>{
+    state.group='Todos'; state.lowOnly=false; state.sort='nome-asc';
+    lowSwitch.classList.remove('on');
+    document.querySelectorAll('.sort-opt').forEach(o=>o.classList.remove('active'));
+    document.querySelector('.sort-opt[data-sort="nome-asc"]').classList.add('active');
+    renderGroupSegmented();
+    render();
+  });
+
+  // add sheet
+  const addSheetBg = $('addSheetBg'), addSheet = $('addSheet');
+  $('addBtn').addEventListener('click', ()=>{
+    $('newCodigo').value=''; $('newNome').value=''; $('newQtd').value='';
+    openSheet(addSheetBg, addSheet);
+  });
+  $('cancelAdd').addEventListener('click', ()=> closeSheet(addSheetBg, addSheet));
+  addSheetBg.addEventListener('click', (e)=>{ if(e.target===addSheetBg) closeSheet(addSheetBg, addSheet); });
+
+  $('confirmAdd').addEventListener('click', ()=>{
+    const codigo = $('newCodigo').value.trim();
+    const nome = $('newNome').value.trim().toUpperCase();
+    const activeGroupOpt = document.querySelector('#newGroupSegmented .opt.active');
+    const grupo = activeGroupOpt ? activeGroupOpt.dataset.group : 'Outros';
+    const qtd = Number($('newQtd').value) || 0;
+    if(!codigo || !nome){ showToast('Preencha código e nome'); return; }
+    const nextId = data.length ? Math.max(...data.map(p=>p.id))+1 : 1;
+    data.push({id: nextId, codigo, nome, grupo, qtd});
+    save(data);
+    closeSheet(addSheetBg, addSheet);
+    showToast('Produto adicionado');
+    render();
+  });
+
+  // tab bar actions
+  $('tabAll').addEventListener('click', ()=>{
+    state.group='Todos'; state.lowOnly=false;
+    setActiveTab('tabAll'); render();
+  });
+  $('tabLow').addEventListener('click', ()=>{
+    state.lowOnly = !state.lowOnly;
+    setActiveTab(state.lowOnly ? 'tabLow' : 'tabAll');
+    render();
+  });
+  $('tabExport').addEventListener('click', ()=>{
+    const rows = [['Codigo','Nome','Grupo','Quantidade']];
+    getFiltered().forEach(p=>rows.push([p.codigo,p.nome,p.grupo,p.qtd]));
+    const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download=`estoque_posto_jales_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    showToast('CSV exportado');
+  });
+  $('tabReset').addEventListener('click', ()=>{
+    if(!confirm('Restaurar os dados originais do relatório? Alterações serão perdidas.')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    data = loadData();
+    showToast('Dados restaurados');
+    render();
+  });
+
+  function setActiveTab(id){
+    document.querySelectorAll('.tab-item').forEach(t=>t.classList.remove('active'));
+    $(id).classList.add('active');
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
