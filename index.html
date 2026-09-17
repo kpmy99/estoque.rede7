@@ -10,6 +10,11 @@
 <meta name="theme-color" content="#0f1410">
 <title>Estoque — Auto Posto Jales</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📦</text></svg>">
+
+<!-- Firebase App e Firestore (Compatibilidade via CDN) -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
 <style>
   :root{
     --bg: #0e130f;
@@ -46,7 +51,6 @@
   input, textarea { user-select: text; }
   button{ font-family: inherit; -webkit-appearance: none; appearance: none; border: none; background: none; color: inherit; }
 
-  /* ---------- Top bar ---------- */
   .topbar{
     position: sticky; top: 0; z-index: 40;
     padding-top: calc(var(--safe-top) + 10px);
@@ -93,7 +97,6 @@
   }
   .filter-dot.show{ display:block; }
 
-  /* chips row (groups) */
   .chips-row{
     display:flex; gap:7px; overflow-x:auto; padding: 12px 16px 2px; scrollbar-width:none;
     -ms-overflow-style:none;
@@ -109,7 +112,6 @@
   .chip.active{ background: var(--panel-2); color: var(--text); border-color: var(--accent-2); }
   .chip .count{ opacity:.6; font-size:10.5px; }
 
-  /* ---------- Stats strip ---------- */
   .stats-strip{
     display:flex; gap:10px; padding: 14px 16px 4px; overflow-x:auto; scrollbar-width:none;
   }
@@ -123,12 +125,7 @@
   .stat-card.low .n{ color: var(--low); }
   .stat-card.warn .n{ color: var(--accent); }
 
-  /* ---------- List ---------- */
   .list{ padding: 6px 12px 20px; }
-  .section-label{
-    font-size: 12px; color: var(--muted); font-weight: 600; padding: 14px 8px 8px;
-  }
-
   .item-card{
     background: var(--panel);
     border: 1px solid var(--line);
@@ -194,7 +191,6 @@
   .empty-state .t{ font-size: 15px; font-weight:600; color: var(--text); margin-bottom:4px; }
   .empty-state .s{ font-size: 13px; }
 
-  /* ---------- Bottom Tab Bar (native app style) ---------- */
   .tabbar{
     position: fixed; left:0; right:0; bottom:0; z-index: 60;
     background: rgba(20,26,21,0.92);
@@ -223,7 +219,6 @@
   }
   .fab:active{ transform: scale(0.92); }
 
-  /* ---------- Bottom sheet (filters) ---------- */
   .sheet-bg{
     position: fixed; inset:0; background: rgba(0,0,0,.55); z-index: 90;
     opacity:0; pointer-events:none; transition: opacity .25s;
@@ -253,9 +248,7 @@
   .field input:focus{ outline:none; border-color: var(--accent-2); }
   .field input[type="number"]{ font-family: var(--mono); }
 
-  .segmented{
-    display:flex; gap:6px; flex-wrap:wrap;
-  }
+  .segmented{ display:flex; gap:6px; flex-wrap:wrap; }
   .segmented .opt{
     padding: 9px 14px; border-radius: 10px; background: var(--panel-3); font-size: 13px;
     color: var(--muted); border: 1px solid transparent;
@@ -295,7 +288,6 @@
   .sort-opt .check{ color: var(--accent-2); opacity:0; }
   .sort-opt.active .check{ opacity:1; }
 
-  /* toast */
   .toast{
     position: fixed; left:50%; bottom: calc(var(--nav-h) + var(--safe-bottom) + 20px);
     transform: translateX(-50%) translateY(20px); z-index: 120;
@@ -305,7 +297,6 @@
     box-shadow: 0 8px 24px rgba(0,0,0,.4); white-space: nowrap;
   }
   .toast.show{ opacity:1; transform: translateX(-50%) translateY(0); }
-
   ::-webkit-scrollbar{ display:none; }
 </style>
 </head>
@@ -315,7 +306,7 @@
   <div class="topbar-inner">
     <div class="eyebrow">
       <span>AUTO POSTO JALES · SETOR 1</span>
-      <span id="lastUpdate">—</span>
+      <span id="lastUpdate">Sincronizando...</span>
     </div>
     <h1>Estoque</h1>
     <div class="search-row">
@@ -448,8 +439,25 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// Dados extraídos do Relatório de Estoque - Auto Posto Jales LTDA - 16/09/2026
-// Quantidades já ajustadas conforme anotações a caneta nas notas
+// ---------- CONFIGURAÇÃO DO FIREBASE ----------
+// Substitua os campos abaixo pelos dados do seu Firebase Console
+const firebaseConfig = {
+  apiKey: "AIzaSyBy8bNOchnhIraVaMP7U6wELos22wHEKZo",
+  authDomain: "rede7-54517.firebaseapp.com",
+  projectId: "rede7-54517",
+  storageBucket: "rede7-54517.firebasestorage.app",
+  messagingSenderId: "632082172840",
+  appId: "1:632082172840:web:fbd3f52660df661904ab9d",
+  measurementId: "G-M3T7D8QQX8"
+};
+
+// Inicializa o Firebase
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+const db = firebase.firestore();
+const collectionRef = db.collection('estoque_posto_jales');
+
 const PRODUTOS_INICIAIS = [
   // GRUPO 631 - REFRIGERANTES
   {codigo:"7894900060010", nome:"SPRITE ZERO LT 350", grupo:"Refrigerantes", qtd:2},
@@ -668,7 +676,6 @@ const PRODUTOS_INICIAIS = [
 ];
 
 (function(){
-  const STORAGE_KEY = 'posto_jales_estoque_v2';
   const GROUP_COLORS = {
     'Refrigerantes': '#4bb3e6',
     'Cervejas': '#e8b94a',
@@ -678,16 +685,7 @@ const PRODUTOS_INICIAIS = [
     'Outros': '#97a390'
   };
 
-  function loadData(){
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw){ try { return JSON.parse(raw); } catch(e){} }
-    const seeded = PRODUTOS_INICIAIS.map((p,i) => ({ id: i+1, ...p }));
-    save(seeded);
-    return seeded;
-  }
-  function save(d){ localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }
-
-  let data = loadData();
+  let data = [];
   let state = {
     search: '',
     group: 'Todos',
@@ -701,7 +699,6 @@ const PRODUTOS_INICIAIS = [
   const emptyState = $('emptyState');
 
   function getGroups(){ return Array.from(new Set(data.map(d=>d.grupo))).sort(); }
-
   function vibrate(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
 
   function showToast(msg, icon){
@@ -711,6 +708,27 @@ const PRODUTOS_INICIAIS = [
     clearTimeout(t._timer);
     t._timer = setTimeout(()=> t.classList.remove('show'), 1800);
   }
+
+  // Sincronização em tempo real via Firestore
+  collectionRef.onSnapshot(async (snapshot) => {
+    if (snapshot.empty) {
+      // Primeira execução: se o banco na nuvem estiver vazio, popula com a lista inicial
+      $('lastUpdate').textContent = 'Carregando inicial...';
+      const batch = db.batch();
+      PRODUTOS_INICIAIS.forEach((item) => {
+        const docRef = collectionRef.doc();
+        batch.set(docRef, { ...item, id: docRef.id });
+      });
+      await batch.commit();
+      return;
+    }
+
+    data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    render();
+  }, (err) => {
+    console.error("Erro no Firestore:", err);
+    showToast("Erro ao conectar no banco");
+  });
 
   function renderChips(){
     const groups = getGroups();
@@ -763,7 +781,7 @@ const PRODUTOS_INICIAIS = [
     if(state.group !== 'Todos') list = list.filter(p=>p.grupo===state.group);
     if(state.search){
       const t = state.search.toLowerCase();
-      list = list.filter(p => p.nome.toLowerCase().includes(t) || p.codigo.toLowerCase().includes(t));
+      list = list.filter(p => (p.nome||'').toLowerCase().includes(t) || (p.codigo||'').toLowerCase().includes(t));
     }
     if(state.lowOnly) list = list.filter(p=>p.qtd<=5);
 
@@ -787,8 +805,6 @@ const PRODUTOS_INICIAIS = [
     const d = new Date();
     $('lastUpdate').textContent = d.toLocaleDateString('pt-BR') + ' · ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   }
-
-  let touchStartX = 0, touchItemId = null;
 
   function render(){
     renderChips();
@@ -862,7 +878,6 @@ const PRODUTOS_INICIAIS = [
   }
 
   document.addEventListener('click', (e)=>{
-    // close swiped cards when tapping elsewhere
     const openCard = document.querySelector('.item-card.swiped');
     if(openCard && !e.target.closest('.item-card.swiped')){
       openCard.classList.remove('swiped');
@@ -871,26 +886,30 @@ const PRODUTOS_INICIAIS = [
     }
   });
 
-  tableBody.addEventListener('click', (e)=>{
+  tableBody.addEventListener('click', async (e)=>{
     const btn = e.target.closest('[data-action]');
     if(!btn) return;
-    const id = Number(btn.dataset.id);
+    const id = btn.dataset.id;
     const item = data.find(p=>p.id===id);
     if(!item) return;
     const action = btn.dataset.action;
 
-    if(action==='inc'){ item.qtd = Number(item.qtd)+1; vibrate(6); save(data); render(); }
-    if(action==='dec'){ item.qtd = Math.max(0, Number(item.qtd)-1); vibrate(6); save(data); render(); }
+    if(action==='inc'){
+      vibrate(6);
+      await collectionRef.doc(id).update({ qtd: Number(item.qtd) + 1 });
+    }
+    if(action==='dec'){
+      vibrate(6);
+      await collectionRef.doc(id).update({ qtd: Math.max(0, Number(item.qtd) - 1) });
+    }
     if(action==='del'){
       vibrate(15);
-      data = data.filter(p=>p.id!==id);
-      save(data);
+      await collectionRef.doc(id).delete();
       showToast('Produto removido');
-      render();
     }
   });
 
-  // search
+  // Busca
   searchInput.addEventListener('input', ()=>{
     state.search = searchInput.value.trim();
     $('clearSearch').classList.toggle('show', !!state.search);
@@ -900,7 +919,7 @@ const PRODUTOS_INICIAIS = [
     searchInput.value=''; state.search=''; $('clearSearch').classList.remove('show'); render();
   });
 
-  // filter sheet
+  // Filtros Bottom Sheet
   function openSheet(bg, sheet){ bg.classList.add('show'); sheet.classList.add('show'); document.body.style.overflow='hidden'; }
   function closeSheet(bg, sheet){ bg.classList.remove('show'); sheet.classList.remove('show'); document.body.style.overflow=''; }
 
@@ -936,7 +955,7 @@ const PRODUTOS_INICIAIS = [
     render();
   });
 
-  // add sheet
+  // Adicionar produto
   const addSheetBg = $('addSheetBg'), addSheet = $('addSheet');
   $('addBtn').addEventListener('click', ()=>{
     $('newCodigo').value=''; $('newNome').value=''; $('newQtd').value='';
@@ -945,22 +964,22 @@ const PRODUTOS_INICIAIS = [
   $('cancelAdd').addEventListener('click', ()=> closeSheet(addSheetBg, addSheet));
   addSheetBg.addEventListener('click', (e)=>{ if(e.target===addSheetBg) closeSheet(addSheetBg, addSheet); });
 
-  $('confirmAdd').addEventListener('click', ()=>{
+  $('confirmAdd').addEventListener('click', async ()=>{
     const codigo = $('newCodigo').value.trim();
     const nome = $('newNome').value.trim().toUpperCase();
     const activeGroupOpt = document.querySelector('#newGroupSegmented .opt.active');
     const grupo = activeGroupOpt ? activeGroupOpt.dataset.group : 'Outros';
     const qtd = Number($('newQtd').value) || 0;
     if(!codigo || !nome){ showToast('Preencha código e nome'); return; }
-    const nextId = data.length ? Math.max(...data.map(p=>p.id))+1 : 1;
-    data.push({id: nextId, codigo, nome, grupo, qtd});
-    save(data);
+
+    const docRef = collectionRef.doc();
+    await docRef.set({ codigo, nome, grupo, qtd, id: docRef.id });
+
     closeSheet(addSheetBg, addSheet);
     showToast('Produto adicionado');
-    render();
   });
 
-  // tab bar actions
+  // Abas inferiores
   $('tabAll').addEventListener('click', ()=>{
     state.group='Todos'; state.lowOnly=false;
     setActiveTab('tabAll'); render();
@@ -981,20 +1000,30 @@ const PRODUTOS_INICIAIS = [
     a.click(); URL.revokeObjectURL(url);
     showToast('CSV exportado');
   });
-  $('tabReset').addEventListener('click', ()=>{
-    if(!confirm('Restaurar os dados originais do relatório? Alterações serão perdidas.')) return;
-    localStorage.removeItem(STORAGE_KEY);
-    data = loadData();
-    showToast('Dados restaurados');
-    render();
+  $('tabReset').addEventListener('click', async ()=>{
+    if(!confirm('Atenção: Isso vai limpar o banco do Firebase e restaurar os dados originais. Deseja continuar?')) return;
+    showToast('Restaurando banco...');
+    
+    // Deleta os documentos atuais
+    const snapshot = await collectionRef.get();
+    const batchDelete = db.batch();
+    snapshot.docs.forEach(doc => batchDelete.delete(doc.ref));
+    await batchDelete.commit();
+
+    // Insere novamente a lista padrão
+    const batchInsert = db.batch();
+    PRODUTOS_INICIAIS.forEach(item => {
+      const docRef = collectionRef.doc();
+      batchInsert.set(docRef, { ...item, id: docRef.id });
+    });
+    await batchInsert.commit();
+    showToast('Estoque restaurado!');
   });
 
   function setActiveTab(id){
     document.querySelectorAll('.tab-item').forEach(t=>t.classList.remove('active'));
     $(id).classList.add('active');
   }
-
-  render();
 })();
 </script>
 </body>
